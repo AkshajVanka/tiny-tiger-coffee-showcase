@@ -2,17 +2,18 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { User, ShoppingCart, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "Shop", href: "/shop" },
-  { name: "Contact Us", href: "/contact" },
-  { name: "Brew Guide", href: "/brew-guide" },
-  { name: "Café Program", href: "/cafe-program" },
 ];
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
+  const { totalItems } = useCart();
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -40,25 +41,31 @@ const Navbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground">
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground relative">
-              <ShoppingCart className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium">
-                0
-              </span>
-            </Button>
+            <Link to={user ? "/profile" : "/auth"}>
+              <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground">
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/cart">
+              <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground relative">
+                <ShoppingCart className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium">
+                  {totalItems}
+                </span>
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <div className="flex lg:hidden items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground relative">
-              <ShoppingCart className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium">
-                0
-              </span>
-            </Button>
+            <Link to="/cart">
+              <Button variant="ghost" size="icon" className="text-foreground/80 hover:text-foreground relative">
+                <ShoppingCart className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium">
+                  {totalItems}
+                </span>
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
@@ -85,10 +92,12 @@ const Navbar = () => {
                 </Link>
               ))}
               <div className="flex items-center gap-4 pt-4 border-t border-border">
-                <Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground">
-                  <User className="h-5 w-5 mr-2" />
-                  Account
-                </Button>
+                <Link to={user ? "/profile" : "/auth"} onClick={() => setIsOpen(false)}>
+                  <Button variant="ghost" size="sm" className="text-foreground/80 hover:text-foreground">
+                    <User className="h-5 w-5 mr-2" />
+                    {user ? "Profile" : "Login"}
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
