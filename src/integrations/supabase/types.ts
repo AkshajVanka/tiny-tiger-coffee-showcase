@@ -56,6 +56,104 @@ export type Database = {
         }
         Relationships: []
       }
+      order_items: {
+        Row: {
+          bag_size: string | null
+          created_at: string
+          grind_type: string | null
+          id: string
+          order_id: string
+          price: number
+          product_id: string
+          product_image: string
+          product_name: string
+          quantity: number
+        }
+        Insert: {
+          bag_size?: string | null
+          created_at?: string
+          grind_type?: string | null
+          id?: string
+          order_id: string
+          price: number
+          product_id: string
+          product_image: string
+          product_name: string
+          quantity: number
+        }
+        Update: {
+          bag_size?: string | null
+          created_at?: string
+          grind_type?: string | null
+          id?: string
+          order_id?: string
+          price?: number
+          product_id?: string
+          product_image?: string
+          product_name?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          id: string
+          payment_method: string
+          payment_status: string
+          shipping_address: string
+          shipping_city: string
+          shipping_name: string
+          shipping_phone: string
+          shipping_pincode: string
+          shipping_state: string
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_method: string
+          payment_status?: string
+          shipping_address: string
+          shipping_city: string
+          shipping_name: string
+          shipping_phone: string
+          shipping_pincode: string
+          shipping_state: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_method?: string
+          payment_status?: string
+          shipping_address?: string
+          shipping_city?: string
+          shipping_name?: string
+          shipping_phone?: string
+          shipping_pincode?: string
+          shipping_state?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -86,15 +184,90 @@ export type Database = {
         }
         Relationships: []
       }
+      user_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          city: string
+          created_at: string
+          full_name: string
+          id: string
+          is_default: boolean | null
+          label: string
+          phone: string
+          pincode: string
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          city: string
+          created_at?: string
+          full_name: string
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          phone: string
+          pincode: string
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          city?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          phone?: string
+          pincode?: string
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -221,6 +394,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
