@@ -149,7 +149,7 @@ const Cart = () => {
                   <span>Rs. {totalPrice.toFixed(2)}</span>
                 </div>
               </div>
-              <Button className="w-full" size="lg">
+              <Button className="w-full" size="lg" onClick={() => navigate("/checkout")}>
                 Proceed to Checkout
               </Button>
             </div>

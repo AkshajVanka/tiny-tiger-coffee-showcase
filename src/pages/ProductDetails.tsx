@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { products } from "@/data/products";
+import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Minus, Plus } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+interface Variant {
+  id: string;
+  size: string;
+  grind_type: string;
+  price: number;
+  stock_count: number;
+}
 
 const grindOptions = [
   { value: "whole_bean", label: "Whole Bean" },
@@ -35,8 +44,31 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [grindType, setGrindType] = useState("whole_bean");
   const [bagSize, setBagSize] = useState("250g");
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(true);
 
   const product = products.find((p) => p.id === id);
+
+  useEffect(() => {
+    if (product) {
+      fetchVariants();
+    }
+  }, [product]);
+
+  const fetchVariants = async () => {
+    if (!product) return;
+    
+    setLoadingVariants(true);
+    const { data } = await supabase
+      .from("variants")
+      .select("*")
+      .eq("product_id", product.id);
+
+    if (data) {
+      setVariants(data);
+    }
+    setLoadingVariants(false);
+  };
 
   if (!product) {
     return (
@@ -56,8 +88,19 @@ const ProductDetails = () => {
     );
   }
 
+  // Get current variant based on selection
+  const currentVariant = variants.find(
+    v => v.size === bagSize && v.grind_type === grindType
+  );
+
+  // Use variant price if available, otherwise calculate from base price
   const selectedSize = sizeOptions.find((s) => s.value === bagSize);
-  const currentPrice = product.price * (selectedSize?.priceMultiplier || 1);
+  const currentPrice = currentVariant?.price ?? product.price * (selectedSize?.priceMultiplier || 1);
+  
+  // Stock status
+  const stockCount = currentVariant?.stock_count ?? 0;
+  const isInStock = stockCount > 0;
+  const isLowStock = stockCount > 0 && stockCount < 10;
 
   const getRoastBadgeClass = (roastLevel: string) => {
     switch (roastLevel) {
@@ -73,6 +116,8 @@ const ProductDetails = () => {
   };
 
   const handleAddToCart = async () => {
+    if (!isInStock) return;
+    
     await addToCart({
       product_id: product.id,
       product_name: product.name,
@@ -119,6 +164,30 @@ const ProductDetails = () => {
                 Rs. {currentPrice.toFixed(2)}
               </p>
             </div>
+
+            {/* Stock Status */}
+            {loadingVariants ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking availability...
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {isInStock ? (
+                  <>
+                    <CheckCircle className={`h-5 w-5 ${isLowStock ? 'text-orange-500' : 'text-green-500'}`} />
+                    <span className={isLowStock ? 'text-orange-500' : 'text-green-500'}>
+                      {isLowStock ? `Only ${stockCount} left in stock` : 'In Stock'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <span className="text-red-500">Out of Stock</span>
+                  </>
+                )}
+              </div>
+            )}
 
             <p className="text-muted-foreground leading-relaxed">
               {product.description}
@@ -175,6 +244,7 @@ const ProductDetails = () => {
                     variant="outline"
                     size="icon"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={!isInStock}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
@@ -182,7 +252,8 @@ const ProductDetails = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => setQuantity(Math.min(stockCount, quantity + 1))}
+                    disabled={!isInStock || quantity >= stockCount}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -190,8 +261,16 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            <Button size="lg" className="w-full" onClick={handleAddToCart}>
-              Add to Cart — Rs. {(currentPrice * quantity).toFixed(2)}
+            <Button 
+              size="lg" 
+              className="w-full" 
+              onClick={handleAddToCart}
+              disabled={!isInStock}
+            >
+              {isInStock 
+                ? `Add to Cart — Rs. ${(currentPrice * quantity).toFixed(2)}`
+                : 'Out of Stock'
+              }
             </Button>
           </div>
         </div>

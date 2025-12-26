@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -63,6 +61,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          role: string
           updated_at: string
           user_id: string
         }
@@ -72,6 +71,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          role?: string
           updated_at?: string
           user_id: string
         }
@@ -81,8 +81,236 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          role?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          roast_level: string | null
+          flavor_notes: string[] | null
+          origin: string | null
+          image_url: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          roast_level?: string | null
+          flavor_notes?: string[] | null
+          origin?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          roast_level?: string | null
+          flavor_notes?: string[] | null
+          origin?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      variants: {
+        Row: {
+          id: string
+          product_id: string
+          size: string
+          grind_type: string
+          price: number
+          stock_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          size: string
+          grind_type: string
+          price: number
+          stock_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          size?: string
+          grind_type?: string
+          price?: number
+          stock_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variants_product_id_fkey"
+            columns: ["product_id"]
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      orders: {
+        Row: {
+          id: string
+          user_id: string
+          status: string
+          total_amount: number
+          shipping_name: string
+          shipping_email: string
+          shipping_phone: string
+          shipping_address: string
+          shipping_city: string
+          shipping_state: string
+          shipping_pincode: string
+          payment_status: string
+          payment_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: string
+          total_amount: number
+          shipping_name: string
+          shipping_email: string
+          shipping_phone: string
+          shipping_address: string
+          shipping_city: string
+          shipping_state: string
+          shipping_pincode: string
+          payment_status?: string
+          payment_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: string
+          total_amount?: number
+          shipping_name?: string
+          shipping_email?: string
+          shipping_phone?: string
+          shipping_address?: string
+          shipping_city?: string
+          shipping_state?: string
+          shipping_pincode?: string
+          payment_status?: string
+          payment_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          id: string
+          order_id: string
+          variant_id: string | null
+          product_name: string
+          grind_type: string
+          bag_size: string
+          quantity: number
+          unit_price: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          variant_id?: string | null
+          product_name: string
+          grind_type: string
+          bag_size: string
+          quantity: number
+          unit_price: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          variant_id?: string | null
+          product_name?: string
+          grind_type?: string
+          bag_size?: string
+          quantity?: number
+          unit_price?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            referencedRelation: "variants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_addresses: {
+        Row: {
+          id: string
+          user_id: string
+          label: string
+          name: string
+          phone: string
+          address: string
+          city: string
+          state: string
+          pincode: string
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          label?: string
+          name: string
+          phone: string
+          address: string
+          city: string
+          state: string
+          pincode: string
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          label?: string
+          name?: string
+          phone?: string
+          address?: string
+          city?: string
+          state?: string
+          pincode?: string
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -91,7 +319,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      decrement_stock: {
+        Args: {
+          variant_uuid: string
+          qty: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

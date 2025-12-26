@@ -16,7 +16,8 @@ const Index = () => {
   const [sortBy, setSortBy] = useState<string>("default");
 
   const filteredAndSortedProducts = useMemo(() => {
-    let result = [...products];
+    // Per PRD: max 3 products (first 3 from products array)
+    let result = [...products].slice(0, 3);
 
     // Filter by roast level
     if (roastFilter !== "all") {
