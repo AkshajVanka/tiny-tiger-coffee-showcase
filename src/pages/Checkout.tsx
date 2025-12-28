@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Check, CreditCard, Truck, ClipboardList } from "lucide-react";
+import { useRazorpay } from "@/hooks/useRazorpay";
+import { Loader2, Check, CreditCard, Truck, ClipboardList, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ShippingInfo {
@@ -46,6 +47,7 @@ const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { openPayment, isLoaded: isRazorpayLoaded } = useRazorpay();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -181,7 +183,7 @@ const Checkout = () => {
 
     setLoading(true);
     try {
-      // Create order
+      // Create order in database first
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -218,30 +220,90 @@ const Checkout = () => {
 
       if (itemsError) throw itemsError;
 
-      // Simulate payment processing (in real app, would use Razorpay/Stripe SDK)
+      // Process payment based on method
       if (paymentMethod === "razorpay") {
-        // Simulate successful payment
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Update order payment status
+        // Check if Razorpay is loaded
+        if (!isRazorpayLoaded()) {
+          toast({
+            title: "Payment Gateway Error",
+            description: "Payment gateway is not available. Please refresh the page and try again.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Open Razorpay payment
+        try {
+          const response = await openPayment({
+            amount: Math.round(totalPrice * 100)/1000, // Convert to paise
+            name: "Tiny Tiger Coffee",
+            description: `Order #${order.id.slice(0, 8)}`,
+            prefill: {
+              name: shippingInfo.name,
+              email: shippingInfo.email,
+              contact: shippingInfo.phone,
+            },
+            notes: {
+              order_id: order.id,
+            },
+            onSuccess: () => {
+              // Will be handled in promise resolution
+            },
+            onError: (error) => {
+              console.error("Payment error:", error);
+            },
+            onDismiss: () => {
+              // Payment was cancelled
+            },
+          });
+
+          // Payment successful - update order
+          await supabase
+            .from("orders")
+            .update({
+              payment_status: "success",
+              payment_id: response.razorpay_payment_id,
+            })
+            .eq("id", order.id);
+
+          // Clear cart and show success
+          await clearCart();
+          toast({
+            title: "Payment Successful!",
+            description: `Order #${order.id.slice(0, 8)} has been placed. You will receive a confirmation email shortly.`,
+          });
+          navigate("/profile");
+        } catch (paymentError) {
+          // Payment failed or cancelled
+          console.error("Payment cancelled or failed:", paymentError);
+          
+          // Update order status to failed
+          await supabase
+            .from("orders")
+            .update({ payment_status: "failed" })
+            .eq("id", order.id);
+
+          toast({
+            title: "Payment Cancelled",
+            description: "Your payment was cancelled. You can try again from your profile.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Cash on Delivery
         await supabase
           .from("orders")
-          .update({ 
-            payment_status: "success",
-            payment_id: `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          })
+          .update({ payment_status: "pending" })
           .eq("id", order.id);
+
+        await clearCart();
+        toast({
+          title: "Order Placed Successfully!",
+          description: `Order #${order.id.slice(0, 8)} has been placed. Pay ₹${totalPrice.toFixed(2)} on delivery.`,
+        });
+        navigate("/profile");
       }
-
-      // Clear cart
-      await clearCart();
-
-      toast({
-        title: "Order Placed Successfully!",
-        description: `Order #${order.id.slice(0, 8)} has been placed. You will receive a confirmation email shortly.`,
-      });
-
-      navigate("/profile");
     } catch (error) {
       console.error("Order error:", error);
       toast({
@@ -495,6 +557,7 @@ const Checkout = () => {
                           Pay when your order arrives
                         </div>
                       </label>
+                      <Wallet className="h-6 w-6 text-muted-foreground" />
                     </div>
                   </RadioGroup>
                 </div>
