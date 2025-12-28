@@ -134,6 +134,17 @@ const AdminOrders = () => {
   };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
+    // Find the current order to check its previous status
+    const currentOrder = orders.find(o => o.id === orderId);
+    const previousStatus = currentOrder?.status;
+    
+    // Determine if we need to decrement stock
+    // Only decrement when transitioning FROM new/processing TO shipped/completed
+    const shouldDecrementStock = 
+      (previousStatus === "new" || previousStatus === "processing") &&
+      (newStatus === "shipped" || newStatus === "completed");
+
+    // Update the order status
     const { error } = await supabase
       .from("orders")
       .update({ status: newStatus })
@@ -145,14 +156,77 @@ const AdminOrders = () => {
         description: "Failed to update order status",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Status Updated",
-        description: `Order status changed to ${newStatus}`,
-      });
-      fetchOrders();
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      return;
+    }
+
+    // Decrement stock if needed
+    if (shouldDecrementStock) {
+      await decrementStockForOrder(orderId);
+    }
+
+    toast({
+      title: "Status Updated",
+      description: `Order status changed to ${newStatus}${shouldDecrementStock ? ". Inventory updated." : ""}`,
+    });
+    fetchOrders();
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+    }
+  };
+
+  const decrementStockForOrder = async (orderId: string) => {
+    // Fetch order items for this order
+    const { data: items, error: itemsError } = await supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", orderId);
+
+    if (itemsError || !items) {
+      console.error("Error fetching order items:", itemsError);
+      return;
+    }
+
+    // For each order item, find the matching variant and decrement stock
+    for (const item of items) {
+      // First, find the product by name
+      const { data: products } = await supabase
+        .from("products")
+        .select("id")
+        .eq("name", item.product_name)
+        .limit(1);
+
+      if (!products || products.length === 0) {
+        console.error(`Product not found: ${item.product_name}`);
+        continue;
+      }
+
+      const productId = products[0].id;
+
+      // Find the matching variant by product_id, grind_type, and size (bag_size)
+      const { data: variants } = await supabase
+        .from("variants")
+        .select("id, stock_count")
+        .eq("product_id", productId)
+        .eq("grind_type", item.grind_type)
+        .eq("size", item.bag_size)
+        .limit(1);
+
+      if (!variants || variants.length === 0) {
+        console.error(`Variant not found for product: ${item.product_name}, grind: ${item.grind_type}, size: ${item.bag_size}`);
+        continue;
+      }
+
+      const variant = variants[0];
+      const newStockCount = Math.max(0, variant.stock_count - item.quantity);
+
+      // Update the stock count
+      const { error: updateError } = await supabase
+        .from("variants")
+        .update({ stock_count: newStockCount })
+        .eq("id", variant.id);
+
+      if (updateError) {
+        console.error(`Error updating stock for variant ${variant.id}:`, updateError);
       }
     }
   };
